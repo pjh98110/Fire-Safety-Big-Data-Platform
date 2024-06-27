@@ -40,7 +40,7 @@ st.markdown(f"""
 # XAI 선택 박스
 selected_xai = st.selectbox(
     label="원하는 Explainable AI(XAI)를 선택하세요.",
-    options=["SHAP", "LIME", "ELI5"],
+    options=["SHAP", "LIME"],
     placeholder="하나를 선택하세요.",
     help="XAI는 사용자가 머신러닝 알고리즘으로 생성된 결과를 쉽게 이해할 수 있도록 도와주는 프로세스와 방법입니다.",
     key="xai_key"
@@ -113,22 +113,4 @@ if st.button("분석 실행"):
         - LIME은 모델 예측을 쉽게 해석할 수 있도록 하는 도구입니다.
         - 특정 데이터 포인트에 대해 모델이 내린 예측을 설명합니다.
         - 각 피처가 예측에 미친 영향을 보여줍니다.
-        """)
-
-    # ELI5 분석 실행
-    elif selected_xai == "ELI5":
-        st.write("ELI5 분석을 실행합니다...")
-
-        # Permutation Importance 사용
-        perm = PermutationImportance(model, random_state=42).fit(X, y)
-        html_obj = eli5.show_weights(perm, feature_names=X.columns.tolist())
-        
-        st.subheader("ELI5 Permutation Importance")
-        components.html(html_obj.data, height=500)
-
-        # ELI5 해석 설명
-        st.markdown("""
-        **ELI5 (Explain Like I'm 5)**:
-        - ELI5는 모델 예측을 쉽게 이해할 수 있도록 설명합니다.
-        - Permutation Importance는 각 피처의 중요도를 측정하여 예측 성능에 미치는 영향을 평가합니다.
         """)
