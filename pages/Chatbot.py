@@ -183,7 +183,7 @@ if selected_chatbot == "GPT를 활용한 화재위험등급 제공":
 
         # 모델 호출 및 응답 처리
         try:
-            response = openai.Completion.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": enhanced_prompt}
