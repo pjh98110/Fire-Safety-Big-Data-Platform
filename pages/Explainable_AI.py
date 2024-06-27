@@ -8,8 +8,6 @@ import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 import streamlit.components.v1 as components
-import eli5
-from eli5.sklearn import PermutationImportance
 
 st.set_page_config(layout="wide")
 
