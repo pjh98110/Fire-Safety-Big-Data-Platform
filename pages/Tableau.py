@@ -33,7 +33,7 @@ st.title("2023년 지역별 화재 및 기상데이터 시각화")
 # 여기에 Tableau Public 대시보드 URL을 입력합니다.
 tableau_public_url = "https://public.tableau.com/app/profile/jonghyeon.park/viz/_17194904158790/1_1"
 tableau_embed_code = f"""
-<iframe src="{tableau_public_url}" width="100%" height="800" frameborder="0"></iframe>
+<iframe src="{tableau_public_url}" width="100%" height="1000"></iframe>
 """
 st.markdown(tableau_embed_code, unsafe_allow_html=True)
 
