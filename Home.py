@@ -1,0 +1,561 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import random
+import os
+from streamlit_extras.switch_page_button import switch_page
+from st_pages import Page, show_pages
+from streamlit_extras.colored_header import colored_header
+from datetime import datetime, timedelta
+import requests
+
+# Streamlit의 경우 로컬 환경에서 실행할 경우 터미널 --> (폴더 경로)Streamlit run Home.py로 실행 / 로컬 환경과 스트리밋 웹앱 환경에서 기능의 차이가 일부 있을 수 있음
+# 파일 경로를 잘못 설정할 경우 오류가 발생하고 실행이 불가능하므로 파일 경로 수정 필수
+# 데이터 파일의 경우 배포된 웹앱 깃허브에서 다운로드 가능함
+
+# 페이지 구성 설정
+st.set_page_config(layout="wide")
+
+show_pages(
+    [
+        Page("Home.py", "기상 요인에 따른 화재위험등급 제공", "🔥"),
+        Page("pages/Chatbot.py", "화재위험등급 안내 챗봇", "🤖"),
+        Page("pages/Tableau.py", "Tableau", "🖥️"),
+        Page("pages/Explainable_AI.py", "Explainable_AI", "📑"),
+    ]
+)
+
+if "page" not in st.session_state:
+    st.session_state.page = "Home"
+
+DATA_PATH = "./"
+SEED = 42
+
+data = pd.read_csv(f"{DATA_PATH}test_data.csv")
+
+def reset_seeds(seed):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+
+
+# 세션 변수에 저장
+if 'type_of_case' not in st.session_state:
+    st.session_state.type_of_case = None
+
+if 'selected_district' not in st.session_state:
+    st.session_state.selected_district = "서울특별시"
+
+if 'selected_day' not in st.session_state:
+    st.session_state.selected_day = datetime.now()
+
+if 'questions' not in st.session_state:
+    st.session_state.questions = None
+
+if 'gpt_input' not in st.session_state:
+    st.session_state.gpt_input = None
+
+if 'gemini_input' not in st.session_state:
+    st.session_state.gemini_input = None   
+
+if 'selected_survey' not in st.session_state:
+    st.session_state.selected_survey = []
+
+
+
+# # 웹앱 스타일 변경하기
+# # 사용자 정의 CSS 적용
+# def apply_custom_styles():
+#     st.markdown("""
+#         <style>
+#             /* 전체 배경색 변경 */
+#             .stApp {
+#                 background-color: #E2F2FD;  /* 하늘색 */
+#             }
+            
+#             /* 헤더 색상 변경 */
+#             .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+#                 color: #000000;  /* 검정 */
+#             }
+            
+#             /* 버튼 스타일 변경 */
+#             .stButton > button {
+#                 background-color: #007BFF;  /* 파란색 */
+#                 color: #000000;  /* 검정 */
+#                 border: none;
+#                 border-radius: 8px;
+#                 padding: 10px 20px;
+#                 font-size: 16px;
+#             }
+            
+#             .stButton > button:hover {
+#                 background-color: #0056b3;  /* 짙은 파란색 */
+#             }
+            
+#             /* 인풋 텍스트 스타일 */
+#             .stTextInput > div > input {
+#                 border: 2px solid #007BFF;  /* 파란색 */
+#                 border-radius: 8px;
+#                 padding: 10px;
+#             }
+            
+#             /* 채팅 메시지 스타일 */
+#             .stChatMessage {
+#                 background-color: #FFFFFF;  /* 흰색 */
+#                 border-radius: 10px;
+#                 margin-bottom: 10px;
+#                 padding: 10px;
+#                 font-size: 14px;
+#             }
+            
+#             .stChatMessage.user {
+#                 border-left: 4px solid #007BFF;  /* 사용자 메시지 왼쪽 파란색 바 */
+#             }
+            
+#             .stChatMessage.ai {
+#                 border-left: 4px solid #FFA500;  /* 모델 메시지 왼쪽 주황색 바 */
+#             }
+#         </style>
+#     """, unsafe_allow_html=True)
+
+# # 스타일 적용
+# apply_custom_styles()
+
+
+
+# 공공데이터 포털 API KEY
+API_KEY = st.secrets["secrets"]["WEATHER_KEY"]
+
+# 기상청 API 엔드포인트 URL을 정의
+BASE_URL = 'http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst'
+
+# 날짜와 시도 정보를 매핑하는 함수
+def weather_info(date, sido):
+    # 시도별로 기상청 격자 좌표를 정의
+    sido_coordinates = {
+        '서울특별시': (60, 127),
+        '부산광역시': (98, 76),
+        '대구광역시': (89, 90),
+        '인천광역시': (55, 124),
+        '광주광역시': (58, 74),
+        '대전광역시': (67, 100),
+        '울산광역시': (102, 84),
+        '세종특별자치시': (66, 103),
+        '경기도': (60, 120),
+        '강원특별자치도': (73, 134),
+        '충청북도': (69, 107),
+        '충청남도': (68, 100),
+        '전북특별자치도': (63, 89),
+        '전라남도': (51, 67),
+        '경상북도': (91, 106),
+        '경상남도': (91, 77),
+        '제주특별자치도': (52, 38),
+    }
+
+    if sido not in sido_coordinates:
+        raise ValueError(f"'{sido}'는 유효한 시도가 아닙니다.")
+    
+    nx, ny = sido_coordinates[sido]
+
+    params = {
+        'serviceKey': API_KEY,
+        'pageNo': 1,
+        'numOfRows': 1000,
+        'dataType': 'JSON',
+        'base_date': date,
+        'base_time': '0500',  # 05:00 AM 기준
+        'nx': nx,
+        'ny': ny,
+    }
+
+    # 시간대별로 유효한 데이터를 찾기 위한 반복
+    valid_times = ['0200', '0500', '0800', '1100', '1400', '1700', '2000', '2300']  # 기상청 단기예보 API 제공 시간
+    response_data = None
+
+    for time in valid_times:
+        params['base_time'] = time
+        response = requests.get(BASE_URL, params=params)
+        
+        # 응답 상태 코드 확인
+        if response.status_code == 200:
+            try:
+                data = response.json()
+                if 'response' in data and 'body' in data['response'] and 'items' in data['response']['body']:
+                    response_data = data['response']['body']['items']['item']
+                    break  # 유효한 데이터를 찾으면 루프 종료
+            except ValueError as e:
+                st.error(f"JSON 디코딩 오류: {e}")
+                st.text(response.text)
+                continue
+        else:
+            st.error(f"HTTP 오류: {response.status_code}")
+            st.text(response.text)
+            continue
+    
+    if response_data:
+        df = pd.DataFrame(response_data)
+        return df
+    else:
+        st.error("유효한 데이터를 찾을 수 없습니다.")
+        return None
+
+# 오늘 날짜와 1일 전 날짜 계산(기상청에서 최근 3일만 제공)
+today = datetime.today()
+three_days_ago = today - timedelta(days=2)
+
+
+
+
+
+# 타이틀
+colored_header(
+    label= '🔥화재안전 빅데이터 플랫폼',
+    description=None,
+    color_name="orange-70",
+)
+
+
+
+# [사이드바]
+st.sidebar.markdown(f"""
+            <span style='font-size: 20px;'>
+            <div style=" color: #000000;">
+                <strong>지역 및 날짜 선택</strong>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+# 사이드바에서 지역 선택
+selected_district = st.sidebar.selectbox(
+    "(1) 당신의 지역을 선택하세요:",
+    ('서울특별시', '경기도', '부산광역시', '인천광역시', '충청북도', '충청남도', 
+     '세종특별자치시', '대전광역시', '전북특별자치도', '전라남도', '광주광역시', 
+     '경상북도', '경상남도', '대구광역시', '울산광역시', '강원특별자치도', '제주특별자치도')
+)
+st.session_state.selected_district = selected_district
+
+# 사이드바에서 날짜 선택
+selected_day = st.sidebar.date_input(
+    "(2) 오늘의 날짜를 선택하세요:", 
+    today, 
+    min_value=three_days_ago, 
+    max_value=today
+).strftime('%Y%m%d')
+st.session_state.selected_day = selected_day
+
+
+# st.sidebar.divider() # 구분선
+
+
+# 날짜와 시도의 기상 정보 가져오기
+weather_data = weather_info(st.session_state.selected_day, st.session_state.selected_district)
+
+
+
+
+
+# 특정 시간의 날씨 데이터를 필터링하는 함수
+def get_weather_value(df, category, time="0600"):
+    row = df[(df['category'] == category) & (df['fcstTime'] == time)]
+    return row['fcstValue'].values[0] if not row.empty else None
+
+# 특정 시간의 날씨 데이터 추출
+temperature = get_weather_value(weather_data, "TMP")
+wind_direction = get_weather_value(weather_data, "VEC")
+wind_speed = get_weather_value(weather_data, "WSD")
+precipitation_prob = get_weather_value(weather_data, "POP")
+precipitation_amount = get_weather_value(weather_data, "PCP")
+humidity = get_weather_value(weather_data, "REH")
+sky_condition = get_weather_value(weather_data, "SKY")
+snow_amount = get_weather_value(weather_data, "SNO")
+wind_speed_uuu = get_weather_value(weather_data, "UUU")
+wind_speed_vvv = get_weather_value(weather_data, "VVV")
+
+# 범주에 따른 강수량 텍스트 변환 함수
+def format_precipitation(pcp):
+    try:
+        pcp = float(pcp)
+        if pcp == 0 or pcp == '-' or pcp is None:
+            return "강수없음"
+        elif 0.1 <= pcp < 1.0:
+            return "1.0mm 미만"
+        elif 1.0 <= pcp < 30.0:
+            return f"{pcp}mm"
+        elif 30.0 <= pcp < 50.0:
+            return "30.0~50.0mm"
+        else:
+            return "50.0mm 이상"
+    except:
+        return "강수없음"
+
+# 신적설 텍스트 변환 함수
+def format_snow_amount(sno):
+    try:
+        sno = float(sno)
+        if sno == 0 or sno == '-' or sno is None:
+            return "적설없음"
+        elif 0.1 <= sno < 1.0:
+            return "1.0cm 미만"
+        elif 1.0 <= sno < 5.0:
+            return f"{sno}cm"
+        else:
+            return "5.0cm 이상"
+    except:
+        return "적설없음"
+
+# 하늘 상태 코드값 변환 함수
+def format_sky_condition(sky):
+    mapping = {1: "맑음", 3: "구름많음", 4: "흐림"}
+    return mapping.get(int(sky), "알 수 없음") if sky else "알 수 없음"
+
+# 강수 형태 코드값 변환 함수
+def format_precipitation_type(pty):
+    mapping = {0: "없음", 1: "비", 2: "비/눈", 3: "눈", 4: "소나기", 5: "빗방울", 6: "빗방울/눈날림", 7: "눈날림"}
+    return mapping.get(int(pty), "알 수 없음") if pty else "알 수 없음"
+
+# 풍향 값에 따른 16방위 변환 함수
+def wind_direction_to_16point(wind_deg):
+    directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW", "N"]
+    index = int((wind_deg + 22.5 * 0.5) / 22.5) % 16
+    return directions[index]
+
+# 풍속에 따른 바람 강도 텍스트 변환 함수
+def wind_speed_category(wind_speed):
+    try:
+        wind_speed = float(wind_speed)
+        if wind_speed < 4.0:
+            return "바람이 약하다"
+        elif 4.0 <= wind_speed < 9.0:
+            return "바람이 약간 강하다"
+        elif 9.0 <= wind_speed < 14.0:
+            return "바람이 강하다"
+        else:
+            return "바람이 매우 강하다"
+    except:
+        return "알 수 없음"
+
+
+
+selected_survey = st.selectbox(
+    "원하는 추천 방식을 선택하세요.",
+    options=["XGBoost 기반 화재위험등급 제공", "GPT를 활용한 화재위험등급 제공", "Gemini를 활용한 화재위험등급 제공"],
+    placeholder="하나를 선택하세요.",
+    help="선택한 추천 방식에 따라 다른 결과를 제공합니다."
+)
+
+st.session_state.selected_survey = selected_survey
+
+
+if selected_survey == "XGBoost 기반 화재위험등급 제공":
+
+    # 사용자의 기상 요인(날씨 정보) 수집
+    questions = {
+    "기온(°C)": st.number_input("기온(°C)을 입력하세요.", value=float(temperature) if temperature is not None else 0.0, step=0.1, format="%.1f", key="p1"),
+    "풍향(deg)": st.number_input("풍향(deg)을 입력하세요.", value=float(wind_direction) if wind_direction is not None else 0.0, step=1.0, format="%.1f", key="p2"),
+    "풍속(m/s)": st.number_input("풍속(m/s)을 입력하세요.", value=float(wind_speed) if wind_speed is not None else 0.0, step=0.1, format="%.1f", key="p3"),
+    "풍속(동서성분) UUU (m/s)": st.number_input("풍속(동서성분) UUU (m/s)을 입력하세요.", value=float(wind_speed_uuu) if wind_speed_uuu is not None else 0.0, step=0.1, format="%.1f", key="p4"),
+    "풍속(남북성분) VVV (m/s)": st.number_input("풍속(남북성분) VVV (m/s)을 입력하세요.", value=float(wind_speed_vvv) if wind_speed_vvv is not None else 0.0, step=0.1, format="%.1f", key="p5"),
+    "강수확률(%)": st.number_input("강수확률(%)을 입력하세요.", value=float(precipitation_prob) if precipitation_prob is not None else 0.0, step=1.0, format="%.1f", key="p6"),
+    "강수형태(코드값)": st.selectbox("강수형태를 선택하세요.", options=[0, 1, 2, 3, 5, 6, 7], format_func=format_precipitation_type, key="p7"),
+    "강수량(범주)": st.text_input("강수량(범주)을 입력하세요.", value=format_precipitation(precipitation_amount) if precipitation_amount is not None else "강수없음", key="p8"),
+    "습도(%)": st.number_input("습도(%)를 입력하세요.", value=float(humidity) if humidity is not None else 0.0, step=1.0, format="%.1f", key="p9"),
+    "1시간 신적설(범주(1 cm))": st.text_input("1시간 신적설(범주(1 cm))을 입력하세요.", value=snow_amount if snow_amount is not None else "적설없음", key="p10"),
+    "하늘상태(코드값)": st.selectbox("하늘상태를 선택하세요.", options=[1, 3, 4], format_func=format_sky_condition, key="p11"),
+    }
+    st.session_state.questions = questions
+
+
+    # 제출 버튼을 누를 경우
+    if st.button("제출"):
+
+        # 스트리밋 클라우드 서버의 데이터 크기 제한으로 인해, 현재 웹앱에서 모델을 전체적으로 
+        # 실행하는 것이 불가능합니다. 이에 따라, 웹앱에서는 모델의 결과를 예시로 보여주는 샘플만 제공되며, 
+        # 실제로 정확한 모델 결과를 얻고자 한다면 제출된 모델의 코드를 자신의 로컬 환경에서 실행해야 합니다.
+        # 현재 xgboost 모델은 제출한 코드에 있으며, 여기에는 예시만 있습니다.
+    
+        model_result = random.choice(range(1, 9, 1))
+
+        st.markdown(f"당신의 지역은 {selected_district}이며, 선택한 날짜는 {selected_day}입니다.")
+        st.markdown(f"기상 데이터로 분석한 결과, 예측된 지역별 일일 화재건수는 {model_result}입니다.")
+        st.markdown(f"추가 정보를 원하시면 아래 버튼을 클릭하세요.")
+
+
+    st.markdown(
+        """
+        <style>
+        .stButton > button {
+            background-color: #A7FFEB;
+            width: 100%; /
+            display: inline-block;
+            margin: 0; /
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+    def page1():
+        want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
+        if want_to_Chatbot:
+            st.session_state.type_of_case = "Chatbot"
+            switch_page("화재위험등급 안내 챗봇")
+            
+    def page2():
+        want_to_Tableau = st.button("Tableau")
+        if want_to_Tableau:
+            st.session_state.type_of_case = "Tableau"
+            switch_page("Tableau")
+
+    def page3():
+        want_to_Explainable_AI = st.button("Explainable_AI")
+        if want_to_Explainable_AI:
+            st.session_state.type_of_case = "Explainable_AI"
+            switch_page("Explainable_AI")
+
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        page1()
+    with col2:
+        page2()
+    with col3:
+        page3()
+
+
+if selected_survey == "GPT를 활용한 화재위험등급 제공":
+
+
+    # 사용자의 기상 요인(날씨 정보) 수집
+    gpt_input = {
+    "기온(°C)": st.number_input("기온(°C)을 입력하세요.", value=float(temperature) if temperature is not None else 0.0, step=0.1, format="%.1f", key="p1"),
+    "풍향(deg)": st.number_input("풍향(deg)을 입력하세요.", value=float(wind_direction) if wind_direction is not None else 0.0, step=1.0, format="%.1f", key="p2"),
+    "풍속(m/s)": st.number_input("풍속(m/s)을 입력하세요.", value=float(wind_speed) if wind_speed is not None else 0.0, step=0.1, format="%.1f", key="p3"),
+    "풍속(동서성분) UUU (m/s)": st.number_input("풍속(동서성분) UUU (m/s)을 입력하세요.", value=float(wind_speed_uuu) if wind_speed_uuu is not None else 0.0, step=0.1, format="%.1f", key="p4"),
+    "풍속(남북성분) VVV (m/s)": st.number_input("풍속(남북성분) VVV (m/s)을 입력하세요.", value=float(wind_speed_vvv) if wind_speed_vvv is not None else 0.0, step=0.1, format="%.1f", key="p5"),
+    "강수확률(%)": st.number_input("강수확률(%)을 입력하세요.", value=float(precipitation_prob) if precipitation_prob is not None else 0.0, step=1.0, format="%.1f", key="p6"),
+    "강수형태(코드값)": st.selectbox("강수형태를 선택하세요.", options=[0, 1, 2, 3, 5, 6, 7], format_func=format_precipitation_type, key="p7"),
+    "강수량(범주)": st.text_input("강수량(범주)을 입력하세요.", value=format_precipitation(precipitation_amount) if precipitation_amount is not None else "강수없음", key="p8"),
+    "습도(%)": st.number_input("습도(%)를 입력하세요.", value=float(humidity) if humidity is not None else 0.0, step=1.0, format="%.1f", key="p9"),
+    "1시간 신적설(범주(1 cm))": st.text_input("1시간 신적설(범주(1 cm))을 입력하세요.", value=snow_amount if snow_amount is not None else "적설없음", key="p10"),
+    "하늘상태(코드값)": st.selectbox("하늘상태를 선택하세요.", options=[1, 3, 4], format_func=format_sky_condition, key="p11"),
+    }
+    st.session_state.gpt_input = gpt_input
+
+    # 제출 버튼을 누를 경우
+    if st.button("제출"):
+    
+        st.markdown(f"당신의 지역은 {selected_district}이며, 선택한 날짜는 {selected_day}입니다.")
+        st.markdown(f"화재위험등급 안내 챗봇 버튼을 클릭하세요. 챗봇 페이지로 이동합니다.")
+
+
+    st.markdown(
+        """
+        <style>
+        .stButton > button {
+            background-color: #A7FFEB;
+            width: 100%; /
+            display: inline-block;
+            margin: 0; /
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+    def page1():
+        want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
+        if want_to_Chatbot:
+            st.session_state.type_of_case = "Chatbot"
+            switch_page("화재위험등급 안내 챗봇")
+            
+    def page2():
+        want_to_Tableau = st.button("Tableau")
+        if want_to_Tableau:
+            st.session_state.type_of_case = "Tableau"
+            switch_page("Tableau")
+
+    def page3():
+        want_to_Explainable_AI = st.button("Explainable_AI")
+        if want_to_Explainable_AI:
+            st.session_state.type_of_case = "Explainable_AI"
+            switch_page("Explainable_AI")
+
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        page1()
+    with col2:
+        page2()
+    with col3:
+        page3()
+
+
+if selected_survey == "Gemini를 활용한 화재위험등급 제공":
+
+    # 사용자의 기상 요인(날씨 정보) 수집
+    gemini_input = {
+    "기온(°C)": st.number_input("기온(°C)을 입력하세요.", value=float(temperature) if temperature is not None else 0.0, step=0.1, format="%.1f", key="p1"),
+    "풍향(deg)": st.number_input("풍향(deg)을 입력하세요.", value=float(wind_direction) if wind_direction is not None else 0.0, step=1.0, format="%.1f", key="p2"),
+    "풍속(m/s)": st.number_input("풍속(m/s)을 입력하세요.", value=float(wind_speed) if wind_speed is not None else 0.0, step=0.1, format="%.1f", key="p3"),
+    "풍속(동서성분) UUU (m/s)": st.number_input("풍속(동서성분) UUU (m/s)을 입력하세요.", value=float(wind_speed_uuu) if wind_speed_uuu is not None else 0.0, step=0.1, format="%.1f", key="p4"),
+    "풍속(남북성분) VVV (m/s)": st.number_input("풍속(남북성분) VVV (m/s)을 입력하세요.", value=float(wind_speed_vvv) if wind_speed_vvv is not None else 0.0, step=0.1, format="%.1f", key="p5"),
+    "강수확률(%)": st.number_input("강수확률(%)을 입력하세요.", value=float(precipitation_prob) if precipitation_prob is not None else 0.0, step=1.0, format="%.1f", key="p6"),
+    "강수형태(코드값)": st.selectbox("강수형태를 선택하세요.", options=[0, 1, 2, 3, 5, 6, 7], format_func=format_precipitation_type, key="p7"),
+    "강수량(범주)": st.text_input("강수량(범주)을 입력하세요.", value=format_precipitation(precipitation_amount) if precipitation_amount is not None else "강수없음", key="p8"),
+    "습도(%)": st.number_input("습도(%)를 입력하세요.", value=float(humidity) if humidity is not None else 0.0, step=1.0, format="%.1f", key="p9"),
+    "1시간 신적설(범주(1 cm))": st.text_input("1시간 신적설(범주(1 cm))을 입력하세요.", value=snow_amount if snow_amount is not None else "적설없음", key="p10"),
+    "하늘상태(코드값)": st.selectbox("하늘상태를 선택하세요.", options=[1, 3, 4], format_func=format_sky_condition, key="p11"),
+    }
+    st.session_state.gemini_input = gemini_input
+
+
+    # 제출 버튼을 누를 경우
+    if st.button("제출"):
+
+        st.markdown(f"당신의 지역은 {selected_district}이며, 선택한 날짜는 {selected_day}입니다.")
+        st.markdown(f"화재위험등급 안내 챗봇 버튼을 클릭하세요. 챗봇 페이지로 이동합니다.")
+
+
+    st.markdown(
+        """
+        <style>
+        .stButton > button {
+            background-color: #A7FFEB;
+            width: 100%; /
+            display: inline-block;
+            margin: 0; /
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+    def page1():
+        want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
+        if want_to_Chatbot:
+            st.session_state.type_of_case = "Chatbot"
+            switch_page("화재위험등급 안내 챗봇")
+            
+    def page2():
+        want_to_Tableau = st.button("Tableau")
+        if want_to_Tableau:
+            st.session_state.type_of_case = "Tableau"
+            switch_page("Tableau")
+
+    def page3():
+        want_to_Explainable_AI = st.button("Explainable_AI")
+        if want_to_Explainable_AI:
+            st.session_state.type_of_case = "Explainable_AI"
+            switch_page("Explainable_AI")
+
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        page1()
+    with col2:
+        page2()
+    with col3:
+        page3()
