@@ -11,4 +11,4 @@ requests
 shap
 lime
 matplotlib
-sklearn
+scikit-learn
