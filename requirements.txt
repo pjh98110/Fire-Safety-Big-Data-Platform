@@ -10,6 +10,5 @@ google-generativeai
 requests
 shap
 lime
-eli5
 matplotlib
 scikit-learn
