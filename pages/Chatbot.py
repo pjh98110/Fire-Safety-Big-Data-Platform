@@ -21,15 +21,6 @@ if "gpt_api_key" not in st.session_state:
 if "gemini_api_key" not in st.session_state:
     st.session_state.gemini_api_key = st.secrets["secrets"]["GEMINI_API_KEY"]
 
-
-DATA_PATH = "./"
-
-
-# 데이터 불러오기
-# data = pd.read_csv(f"{DATA_PATH}name.csv")
-
-
-
 # GPT 프롬프트 엔지니어링 함수
 def gpt_prompt(user_input):
     base_prompt = f"""
@@ -76,8 +67,6 @@ def gpt_prompt(user_input):
     사용자 입력: {user_input}
     """
     return base_prompt
-
-    
 
 
 # Gemini 프롬프트 엔지니어링 함수
