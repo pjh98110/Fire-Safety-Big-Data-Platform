@@ -63,67 +63,6 @@ if 'selected_survey' not in st.session_state:
     st.session_state.selected_survey = []
 
 
-
-# # 웹앱 스타일 변경하기
-# # 사용자 정의 CSS 적용
-# def apply_custom_styles():
-#     st.markdown("""
-#         <style>
-#             /* 전체 배경색 변경 */
-#             .stApp {
-#                 background-color: #E2F2FD;  /* 하늘색 */
-#             }
-            
-#             /* 헤더 색상 변경 */
-#             .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
-#                 color: #000000;  /* 검정 */
-#             }
-            
-#             /* 버튼 스타일 변경 */
-#             .stButton > button {
-#                 background-color: #007BFF;  /* 파란색 */
-#                 color: #000000;  /* 검정 */
-#                 border: none;
-#                 border-radius: 8px;
-#                 padding: 10px 20px;
-#                 font-size: 16px;
-#             }
-            
-#             .stButton > button:hover {
-#                 background-color: #0056b3;  /* 짙은 파란색 */
-#             }
-            
-#             /* 인풋 텍스트 스타일 */
-#             .stTextInput > div > input {
-#                 border: 2px solid #007BFF;  /* 파란색 */
-#                 border-radius: 8px;
-#                 padding: 10px;
-#             }
-            
-#             /* 채팅 메시지 스타일 */
-#             .stChatMessage {
-#                 background-color: #FFFFFF;  /* 흰색 */
-#                 border-radius: 10px;
-#                 margin-bottom: 10px;
-#                 padding: 10px;
-#                 font-size: 14px;
-#             }
-            
-#             .stChatMessage.user {
-#                 border-left: 4px solid #007BFF;  /* 사용자 메시지 왼쪽 파란색 바 */
-#             }
-            
-#             .stChatMessage.ai {
-#                 border-left: 4px solid #FFA500;  /* 모델 메시지 왼쪽 주황색 바 */
-#             }
-#         </style>
-#     """, unsafe_allow_html=True)
-
-# # 스타일 적용
-# apply_custom_styles()
-
-
-
 # 공공데이터 포털 API KEY
 API_KEY = st.secrets["secrets"]["WEATHER_KEY"]
 
@@ -202,10 +141,7 @@ def weather_info(date, sido):
 
 # 오늘 날짜와 1일 전 날짜 계산(기상청에서 최근 3일만 제공)
 today = datetime.today()
-three_days_ago = today - timedelta(days=2)
-
-
-
+three_days_ago = today - timedelta(days=1)
 
 
 # 타이틀
