@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 import streamlit.components.v1 as components
+import eli5
+from eli5.sklearn import PermutationImportance
 
 st.set_page_config(layout="wide")
 
@@ -117,10 +119,7 @@ if st.button("분석 실행"):
     elif selected_xai == "ELI5":
         st.write("ELI5 분석을 실행합니다...")
 
-        # ELI5 분석 (예시로 Permutation Importance 사용)
-        import eli5
-        from eli5.sklearn import PermutationImportance
-
+        # Permutation Importance 사용
         perm = PermutationImportance(model, random_state=42).fit(X, y)
         html_obj = eli5.show_weights(perm, feature_names=X.columns.tolist())
         
