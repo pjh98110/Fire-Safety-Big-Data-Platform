@@ -274,10 +274,10 @@ def wind_speed_category(wind_speed):
 
 
 selected_survey = st.selectbox(
-    "원하는 추천 방식을 선택하세요.",
+    "원하는 모델을 선택하세요.",
     options=["XGBoost 기반 화재위험등급 제공", "GPT를 활용한 화재위험등급 제공", "Gemini를 활용한 화재위험등급 제공"],
     placeholder="하나를 선택하세요.",
-    help="선택한 추천 방식에 따라 다른 결과를 제공합니다."
+    help="선택한 모델에 따라 다른 결과를 제공합니다."
 )
 
 st.session_state.selected_survey = selected_survey
