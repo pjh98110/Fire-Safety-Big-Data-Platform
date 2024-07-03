@@ -8,6 +8,7 @@ openai==0.27.0
 google-generativeai
 requests
 lime
+cython
 xgboost==1.3.3
 scikit-learn==1.0.2
 matplotlib==3.4.3
