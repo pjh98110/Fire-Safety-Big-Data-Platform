@@ -87,7 +87,6 @@ if 'selected_survey' not in st.session_state:
     st.session_state.selected_survey = []
 
 
-
 # 공공데이터 포털 API KEY
 API_KEY = st.secrets["secrets"]["WEATHER_KEY"]
 
@@ -169,17 +168,12 @@ today = datetime.today()
 three_days_ago = today - timedelta(days=1)
 
 
-
-
-
 # 타이틀
 colored_header(
     label= '🔥화재안전 빅데이터 플랫폼',
     description=None,
     color_name="orange-70",
 )
-
-
 
 # [사이드바]
 st.sidebar.markdown(f"""
@@ -208,10 +202,8 @@ selected_day = st.sidebar.date_input(
 ).strftime('%Y%m%d')
 st.session_state.selected_day = selected_day
 
-
 # 날짜와 시도의 기상 정보 가져오기
 weather_data = weather_info(st.session_state.selected_day, st.session_state.selected_district)
-
 
 # 특정 시간의 날씨 데이터를 필터링하는 함수
 def get_weather_value(df, category, time="0600"):
@@ -294,7 +286,6 @@ def wind_speed_category(wind_speed):
         return "알 수 없음"
 
 
-
 selected_survey = st.selectbox(
     "사용할 모델을 선택하세요.",
     options=["XGBoost 기반 화재위험등급 제공", "GPT를 활용한 화재위험등급 제공", "Gemini를 활용한 화재위험등급 제공"],
@@ -346,10 +337,6 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         explainer = shap.TreeExplainer(xgb_model)
         shap_values = explainer.shap_values(X_train)
 
-        # SHAP 값 구조 확인
-        st.write(f"SHAP values shape: {np.array(shap_values).shape}")
-        st.write(f"X_train shape: {X_train.shape}")
-
         # 모델 성능 지표 설명 추가
         st.markdown("### 모델 성능 지표")
         st.markdown(f"**Accuracy**: {accuracy}")
@@ -372,14 +359,14 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         - 도트 그래프: 각 샘플에 대한 특성 값과 SHAP 값을 시각화하여 특성 값이 예측에 미치는 영향을 보여줍니다.
         """)
 
-        # SHAP 값 시각화
+        # 다중 클래스인 경우 각 클래스에 대해 SHAP 값 시각화
         shap_values = np.array(shap_values)  # SHAP 값을 numpy 배열로 변환
         if len(shap_values.shape) == 3:  # 다중 클래스인 경우
-            for class_ind in range(shap_values.shape[0]):
+            for class_ind in range(shap_values.shape[2]):
                 col1, col2 = st.columns(2)
                 with col1:
                     shap.summary_plot(
-                        shap_values[class_ind], 
+                        shap_values[:, :, class_ind], 
                         X_train, 
                         feature_names=X_train.columns, 
                         plot_type="bar", 
@@ -392,7 +379,7 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
 
                 with col2:
                     shap.summary_plot(
-                        shap_values[class_ind], 
+                        shap_values[:, :, class_ind], 
                         X_train, 
                         feature_names=X_train.columns, 
                         plot_type="dot", 
