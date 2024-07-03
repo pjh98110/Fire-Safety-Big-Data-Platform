@@ -9,6 +9,14 @@ from streamlit_extras.colored_header import colored_header
 from datetime import datetime, timedelta
 import requests
 
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, classification_report
+from pycaret.classification import load_model
+import matplotlib.pyplot as plt
+import shap
+import pickle
 
 # Streamlit의 경우 로컬 환경에서 실행할 경우 터미널 --> (폴더 경로)Streamlit run Home.py로 실행 / 로컬 환경과 스트리밋 웹앱 환경에서 기능의 차이가 일부 있을 수 있음
 # 파일 경로를 잘못 설정할 경우 오류가 발생하고 실행이 불가능하므로 파일 경로 수정 필수
@@ -30,14 +38,31 @@ if "page" not in st.session_state:
     st.session_state.page = "Home"
 
 DATA_PATH = "./"
-SEED = 42
 
-data = pd.read_csv(f"{DATA_PATH}test_data.csv")
+X = pd.read_csv(f'{DATA_PATH}x_train.csv')
+y = pd.read_csv(f'{DATA_PATH}y_train.csv')
+
+# 데이터 샘플링
+X = X.sample(frac=0.2, random_state=42)
+y = y.sample(frac=0.2, random_state=42)
 
 def reset_seeds(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
+
+reset_seeds(42)
+
+# 한글 폰트 설정 함수
+def set_korean_font():
+    font_path = f"{DATA_PATH}NanumGothic.ttf"  # 폰트 파일 경로
+
+    from matplotlib import font_manager, rc
+    font_manager.fontManager.addfont(font_path)
+    rc('font', family='NanumGothic')
+
+# 한글 폰트 설정 적용
+set_korean_font()
 
 
 # 세션 변수에 저장
@@ -61,6 +86,7 @@ if 'gemini_input' not in st.session_state:
 
 if 'selected_survey' not in st.session_state:
     st.session_state.selected_survey = []
+
 
 
 # 공공데이터 포털 API KEY
@@ -144,6 +170,9 @@ today = datetime.today()
 three_days_ago = today - timedelta(days=1)
 
 
+
+
+
 # 타이틀
 colored_header(
     label= '🔥화재안전 빅데이터 플랫폼',
@@ -181,14 +210,8 @@ selected_day = st.sidebar.date_input(
 st.session_state.selected_day = selected_day
 
 
-# st.sidebar.divider() # 구분선
-
-
 # 날짜와 시도의 기상 정보 가져오기
 weather_data = weather_info(st.session_state.selected_day, st.session_state.selected_district)
-
-
-
 
 
 # 특정 시간의 날씨 데이터를 필터링하는 함수
@@ -274,10 +297,10 @@ def wind_speed_category(wind_speed):
 
 
 selected_survey = st.selectbox(
-    "원하는 모델을 선택하세요.",
+    "사용할 모델을 선택하세요.",
     options=["XGBoost 기반 화재위험등급 제공", "GPT를 활용한 화재위험등급 제공", "Gemini를 활용한 화재위험등급 제공"],
     placeholder="하나를 선택하세요.",
-    help="선택한 모델에 따라 다른 결과를 제공합니다."
+    help="선택한 모델에 따라 다른 분석 결과를 제공합니다."
 )
 
 st.session_state.selected_survey = selected_survey
@@ -285,38 +308,101 @@ st.session_state.selected_survey = selected_survey
 
 if selected_survey == "XGBoost 기반 화재위험등급 제공":
 
-    # 사용자의 기상 요인(날씨 정보) 수집
-    questions = {
-    "기온(°C)": st.number_input("기온(°C)을 입력하세요.", value=float(temperature) if temperature is not None else 0.0, step=0.1, format="%.1f", key="p1"),
-    "풍향(deg)": st.number_input("풍향(deg)을 입력하세요.", value=float(wind_direction) if wind_direction is not None else 0.0, step=1.0, format="%.1f", key="p2"),
-    "풍속(m/s)": st.number_input("풍속(m/s)을 입력하세요.", value=float(wind_speed) if wind_speed is not None else 0.0, step=0.1, format="%.1f", key="p3"),
-    "풍속(동서성분) UUU (m/s)": st.number_input("풍속(동서성분) UUU (m/s)을 입력하세요.", value=float(wind_speed_uuu) if wind_speed_uuu is not None else 0.0, step=0.1, format="%.1f", key="p4"),
-    "풍속(남북성분) VVV (m/s)": st.number_input("풍속(남북성분) VVV (m/s)을 입력하세요.", value=float(wind_speed_vvv) if wind_speed_vvv is not None else 0.0, step=0.1, format="%.1f", key="p5"),
-    "강수확률(%)": st.number_input("강수확률(%)을 입력하세요.", value=float(precipitation_prob) if precipitation_prob is not None else 0.0, step=1.0, format="%.1f", key="p6"),
-    "강수형태(코드값)": st.selectbox("강수형태를 선택하세요.", options=[0, 1, 2, 3, 5, 6, 7], format_func=format_precipitation_type, key="p7"),
-    "강수량(범주)": st.text_input("강수량(범주)을 입력하세요.", value=format_precipitation(precipitation_amount) if precipitation_amount is not None else "강수없음", key="p8"),
-    "습도(%)": st.number_input("습도(%)를 입력하세요.", value=float(humidity) if humidity is not None else 0.0, step=1.0, format="%.1f", key="p9"),
-    "1시간 신적설(범주(1 cm))": st.text_input("1시간 신적설(범주(1 cm))을 입력하세요.", value=snow_amount if snow_amount is not None else "적설없음", key="p10"),
-    "하늘상태(코드값)": st.selectbox("하늘상태를 선택하세요.", options=[1, 3, 4], format_func=format_sky_condition, key="p11"),
-    }
-    st.session_state.questions = questions
+    # 데이터 크기 조정
+    if len(X) != len(y):
+        X = X[:min(len(X), len(y))]
+        y = y[:min(len(X), len(y))]
 
+    # 범주형 변수 레이블 인코딩
+    categorical_columns = ['fire_firefighting_district_full_', 'season', 'lisa_category']
+    label_encoders = {}
+    for col in categorical_columns:
+        le = LabelEncoder()
+        X[col] = le.fit_transform(X[col])
+        label_encoders[col] = le
 
-    # 제출 버튼을 누를 경우
-    if st.button("제출"):
+    # 목표 변수 레이블 인코딩
+    le_y = LabelEncoder()
+    y = le_y.fit_transform(y)
+
+    # 학습 데이터와 테스트 데이터로 분할
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # 저장된 모델 로드
+    with open(f'{DATA_PATH}xgb_model.pkl', 'rb') as f:
+        xgb_model = pickle.load(f)
+
+    # 분석 실행 버튼
+    if st.button("분석실행"):
+        # 예측 및 성능 평가
+        y_pred = xgb_model.predict(X_test)
+        y_pred = np.round(y_pred).astype(int)  # 예측 값을 정수형으로 변환
+        accuracy = accuracy_score(y_test, y_pred)
+        report = classification_report(y_test, y_pred)
+
+        # 각 클래스에 대해 SHAP 요약 플롯 생성
+        explainer = shap.TreeExplainer(xgb_model)
+        shap_values = explainer.shap_values(X_train)
+
+        # 모델 성능 지표 설명 추가
+        st.markdown("### 모델 성능 지표")
+        st.markdown(f"**Accuracy**: {accuracy}")
+        st.markdown("정확도(Accuracy)는 모델이 올바르게 예측한 비율을 나타냅니다. 높은 정확도는 모델이 대부분의 경우 올바르게 예측함을 의미합니다.")
+        
+        st.markdown("**Classification Report**:")
+        st.text(report)
+        st.markdown("""
+        분류 보고서(Classification Report)는 Precision, Recall, F1-Score 등의 성능 지표를 제공합니다.
+        - Precision: 모델이 예측한 양성 샘플 중 실제 양성 샘플의 비율
+        - Recall: 실제 양성 샘플 중 모델이 양성으로 올바르게 예측한 비율
+        - F1-Score: Precision과 Recall의 조화 평균
+        """)
+
+        st.markdown("### SHAP 값")
+        st.markdown("""
+        SHAP (SHapley Additive exPlanations) 값은 각 특성이 모델의 예측에 미치는 영향을 설명합니다.
+        각 클래스에 대한 SHAP 요약 플롯을 통해 특성의 중요도를 시각화할 수 있습니다.
+        - 막대 그래프: 특성의 평균 절대 SHAP 값을 나타내며, 값이 클수록 해당 특성이 모델 예측에 중요한 역할을 함을 의미합니다.
+        - 도트 그래프: 각 샘플에 대한 특성 값과 SHAP 값을 시각화하여 특성 값이 예측에 미치는 영향을 보여줍니다.
+        """)
+
+        class_colors = plt.cm.get_cmap('tab10', len(np.unique(y_train)))
+
+        for class_ind, shap_value in enumerate(shap_values):
+            col1, col2 = st.columns(2)
+            with col1:
+                shap.summary_plot(
+                    shap_value, 
+                    X_train, 
+                    feature_names=X_train.columns, 
+                    plot_type="bar", 
+                    max_display=10, 
+                    show=False, 
+                    color=class_colors(class_ind)
+                )
+                plt.title(f"{class_ind}번 클래스 (막대 그래프)", fontsize=20)
+                st.pyplot(plt)
+                plt.clf()
+
+            with col2:
+                shap.summary_plot(
+                    shap_value, 
+                    X_train, 
+                    feature_names=X_train.columns, 
+                    plot_type="dot", 
+                    max_display=10, 
+                    show=False, 
+                    color=class_colors(class_ind)
+                )
+                plt.title(f"{class_ind}번 클래스 (도트 그래프)", fontsize=20)
+                st.pyplot(plt)
+                plt.clf()
 
         # 스트리밋 클라우드 서버의 데이터 크기 제한으로 인해, 현재 웹앱에서 모델을 전체적으로 
         # 실행하는 것이 불가능합니다. 이에 따라, 웹앱에서는 모델의 결과를 예시로 보여주는 샘플만 제공되며, 
         # 실제로 정확한 모델 결과를 얻고자 한다면 제출된 모델의 코드를 자신의 로컬 환경에서 실행해야 합니다.
         # 현재 xgboost 모델은 제출한 코드에 있으며, 여기에는 예시만 있습니다.
     
-        model_result = random.choice(range(1, 9, 1))
-
-        st.markdown(f"당신의 지역은 {selected_district}이며, 선택한 날짜는 {selected_day}입니다.")
-        st.markdown(f"기상 데이터로 분석한 결과, 예측된 지역별 일일 화재건수는 {model_result}입니다.")
-        st.markdown(f"추가 정보를 원하시면 아래 버튼을 클릭하세요.")
-
-
     st.markdown(
         """
         <style>
@@ -330,7 +416,6 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         """,
         unsafe_allow_html=True,
     )
-
 
     def page1():
         want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
@@ -349,7 +434,6 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         if want_to_Explainable_AI:
             st.session_state.type_of_case = "Explainable_AI"
             switch_page("Explainable_AI")
-
 
     col1, col2, col3 = st.columns(3)
     with col1:
