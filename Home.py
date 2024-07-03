@@ -346,6 +346,10 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         explainer = shap.TreeExplainer(xgb_model)
         shap_values = explainer.shap_values(X_train)
 
+        # SHAP 값 구조 확인
+        st.write(f"SHAP values shape: {np.array(shap_values).shape}")
+        st.write(f"X_train shape: {X_train.shape}")
+
         # 모델 성능 지표 설명 추가
         st.markdown("### 모델 성능 지표")
         st.markdown(f"**Accuracy**: {accuracy}")
@@ -368,31 +372,62 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         - 도트 그래프: 각 샘플에 대한 특성 값과 SHAP 값을 시각화하여 특성 값이 예측에 미치는 영향을 보여줍니다.
         """)
 
-        for class_ind, shap_value in enumerate(shap_values):
+        # SHAP 값 시각화
+        shap_values = np.array(shap_values)  # SHAP 값을 numpy 배열로 변환
+        if len(shap_values.shape) == 3:  # 다중 클래스인 경우
+            for class_ind in range(shap_values.shape[0]):
+                col1, col2 = st.columns(2)
+                with col1:
+                    shap.summary_plot(
+                        shap_values[class_ind], 
+                        X_train, 
+                        feature_names=X_train.columns, 
+                        plot_type="bar", 
+                        max_display=10, 
+                        show=False
+                    )
+                    plt.title(f"{class_ind}번 클래스 (막대 그래프)", fontsize=20)
+                    st.pyplot(plt)
+                    plt.clf()
+
+                with col2:
+                    shap.summary_plot(
+                        shap_values[class_ind], 
+                        X_train, 
+                        feature_names=X_train.columns, 
+                        plot_type="dot", 
+                        max_display=10, 
+                        show=False
+                    )
+                    plt.title(f"{class_ind}번 클래스 (도트 그래프)", fontsize=20)
+                    st.pyplot(plt)
+                    plt.clf()
+                    
+        else:  # 단일 클래스인 경우
             col1, col2 = st.columns(2)
             with col1:
                 shap.summary_plot(
-                    shap_value, 
+                    shap_values, 
                     X_train, 
                     feature_names=X_train.columns, 
                     plot_type="bar", 
                     max_display=10, 
                     show=False
                 )
-                plt.title(f"{class_ind}번 클래스 (막대 그래프)", fontsize=20)
+                plt.title(f"SHAP 값 (막대 그래프)", fontsize=20)
                 st.pyplot(plt)
                 plt.clf()
 
             with col2:
                 shap.summary_plot(
-                    shap_value, 
+                    shap_values, 
                     X_train, 
                     feature_names=X_train.columns, 
                     plot_type="dot", 
                     max_display=10, 
                     show=False
                 )
-                plt.title(f"{class_ind}번 클래스 (도트 그래프)", fontsize=20)
+                plt.title(f"SHAP 값 (도트 그래프)", fontsize=20)
                 st.pyplot(plt)
                 plt.clf()
                 
