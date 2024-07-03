@@ -377,8 +377,7 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
                     feature_names=X_train.columns, 
                     plot_type="bar", 
                     max_display=10, 
-                    show=False, 
-                    color=class_colors(class_ind)
+                    show=False
                 )
                 plt.title(f"{class_ind}번 클래스 (막대 그래프)", fontsize=20)
                 st.pyplot(plt)
@@ -391,13 +390,12 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
                     feature_names=X_train.columns, 
                     plot_type="dot", 
                     max_display=10, 
-                    show=False, 
-                    color=class_colors(class_ind)
+                    show=False
                 )
                 plt.title(f"{class_ind}번 클래스 (도트 그래프)", fontsize=20)
                 st.pyplot(plt)
                 plt.clf()
-
+                
         # 스트리밋 클라우드 서버의 데이터 크기 제한으로 인해, 현재 웹앱에서 모델을 전체적으로 
         # 실행하는 것이 불가능합니다. 이에 따라, 웹앱에서는 모델의 결과를 예시로 보여주는 샘플데이터(25mb 이하)로 분석을 제공하며, 
         # 실제로 정확한 모델 결과를 얻고자 한다면 제출된 모델의 코드를 자신의 로컬 환경에서 실행해야 합니다.
