@@ -13,7 +13,6 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, classification_report
-from pycaret.classification import load_model
 import matplotlib.pyplot as plt
 import shap
 import pickle
