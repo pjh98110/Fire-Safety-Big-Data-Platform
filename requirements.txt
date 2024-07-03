@@ -1,7 +1,6 @@
 streamlit==1.27.2
 pandas==2.0.1
 numpy==1.23.5
-datetime
 st_pages
 streamlit_extras
 streamlit_chat
@@ -9,8 +8,7 @@ openai==0.27.0
 google-generativeai
 requests
 lime
-xgboost
+xgboost==1.3.3
 scikit-learn==0.24.2
-pycaret==2.3.6
 matplotlib==3.4.3
 shap==0.39.0
