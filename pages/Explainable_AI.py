@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 import streamlit.components.v1 as components
+import time
 
 st.set_page_config(layout="wide")
 
@@ -18,6 +19,17 @@ try:
 except FileNotFoundError:
     st.error("데이터 파일을 찾을 수 없습니다. 데이터 파일의 경로를 확인하세요.")
     st.stop()
+
+# 한글 폰트 설정 함수
+def set_korean_font():
+    font_path = f"{DATA_PATH}NanumGothic.ttf"  # 폰트 파일 경로
+
+    from matplotlib import font_manager, rc
+    font_manager.fontManager.addfont(font_path)
+    rc('font', family='NanumGothic')
+
+# 한글 폰트 설정 적용
+set_korean_font()
 
 # 데이터 샘플링 (속도 개선을 위해 샘플링 비율 조정)
 sample_fraction = 0.1  # 10% 샘플링
@@ -64,9 +76,12 @@ if st.button("분석 실행"):
     model = RandomForestRegressor(random_state=42, n_jobs=-1) # xgboost로 변경하기
     model.fit(X, y)
 
-    # 한글 깨짐 문제 해결을 위한 설정
-    plt.rcParams['font.family'] = 'Malgun Gothic'
-    plt.rcParams['axes.unicode_minus'] = False
+    # 로딩바 생성
+    progress_bar = st.progress(0)
+    
+    for percent_complete in range(100):
+        time.sleep(0.01)
+        progress_bar.progress(percent_complete + 1)
 
     # SHAP 분석 실행
     if selected_xai == "SHAP":
