@@ -42,8 +42,8 @@ X = pd.read_csv(f'{DATA_PATH}x_train.csv')
 y = pd.read_csv(f'{DATA_PATH}y_train.csv')
 
 # 데이터 샘플링
-X = X.sample(frac=0.2, random_state=42)
-y = y.sample(frac=0.2, random_state=42)
+# X = X.sample(frac=0.2, random_state=42)
+# y = y.sample(frac=0.2, random_state=42)
 
 def reset_seeds(seed):
     random.seed(seed)
@@ -339,6 +339,9 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         accuracy = accuracy_score(y_test, y_pred)
         report = classification_report(y_test, y_pred)
 
+        # 색상 맵 설정
+        class_colors = plt.get_cmap('tab10', len(np.unique(y_train)))
+
         # 각 클래스에 대해 SHAP 요약 플롯 생성
         explainer = shap.TreeExplainer(xgb_model)
         shap_values = explainer.shap_values(X_train)
@@ -364,8 +367,6 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         - 막대 그래프: 특성의 평균 절대 SHAP 값을 나타내며, 값이 클수록 해당 특성이 모델 예측에 중요한 역할을 함을 의미합니다.
         - 도트 그래프: 각 샘플에 대한 특성 값과 SHAP 값을 시각화하여 특성 값이 예측에 미치는 영향을 보여줍니다.
         """)
-
-        class_colors = plt.cm.get_cmap('tab10', len(np.unique(y_train)))
 
         for class_ind, shap_value in enumerate(shap_values):
             col1, col2 = st.columns(2)
@@ -398,9 +399,9 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
                 plt.clf()
 
         # 스트리밋 클라우드 서버의 데이터 크기 제한으로 인해, 현재 웹앱에서 모델을 전체적으로 
-        # 실행하는 것이 불가능합니다. 이에 따라, 웹앱에서는 모델의 결과를 예시로 보여주는 샘플만 제공되며, 
+        # 실행하는 것이 불가능합니다. 이에 따라, 웹앱에서는 모델의 결과를 예시로 보여주는 샘플데이터(25mb 이하)로 분석을 제공하며, 
         # 실제로 정확한 모델 결과를 얻고자 한다면 제출된 모델의 코드를 자신의 로컬 환경에서 실행해야 합니다.
-        # 현재 xgboost 모델은 제출한 코드에 있으며, 여기에는 예시만 있습니다.
+        # 전체적인 xgboost 모델은 제출한 코드에 있으며, 여기에는 샘플데이터 분석 결과만 있습니다.
     
     st.markdown(
         """
