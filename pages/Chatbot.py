@@ -204,6 +204,11 @@ if selected_chatbot == "GPT를 활용한 화재위험등급 제공":
             st.error(f"OpenAI API 요청 중 오류가 발생했습니다: {str(e)}")
 
 elif selected_chatbot == "Gemini를 활용한 화재위험등급 제공":
+    colored_header(
+        label='Gemini를 활용한 화재위험등급 제공',
+        description=None,
+        color_name="blue-70",
+    )
     # 세션 변수 체크
     check_session_vars()
 
