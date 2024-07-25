@@ -441,7 +441,7 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
         if want_to_Chatbot:
             st.session_state.type_of_case = "Chatbot"
-            switch_page("Chatbot")
+            switch_page("화재위험등급 안내 챗봇")
             
     def page2():
         want_to_Tableau = st.button("Tableau")
@@ -509,7 +509,7 @@ if selected_survey == "GPT를 활용한 화재위험등급 제공":
         want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
         if want_to_Chatbot:
             st.session_state.type_of_case = "Chatbot"
-            switch_page("Chatbot")
+            switch_page("화재위험등급 안내 챗봇")
             
     def page2():
         want_to_Tableau = st.button("Tableau")
@@ -578,7 +578,7 @@ if selected_survey == "Gemini를 활용한 화재위험등급 제공":
         want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
         if want_to_Chatbot:
             st.session_state.type_of_case = "Chatbot"
-            switch_page("Chatbot")
+            switch_page("화재위험등급 안내 챗봇")
             
     def page2():
         want_to_Tableau = st.button("Tableau")
