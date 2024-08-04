@@ -38,8 +38,14 @@ if "page" not in st.session_state:
 
 DATA_PATH = "./"
 
-X = pd.read_csv(f'{DATA_PATH}x_train.csv')
-y = pd.read_csv(f'{DATA_PATH}y_train.csv')
+@st.cache_data
+def load_data():
+    DATA_PATH = "./"
+    X = pd.read_csv(f'{DATA_PATH}x_train.csv')
+    y = pd.read_csv(f'{DATA_PATH}y_train.csv')
+    return X, y
+
+X, y = load_data()
 
 # 데이터 샘플링
 # X = X.sample(frac=0.2, random_state=42)
@@ -441,7 +447,7 @@ if selected_survey == "XGBoost 기반 화재위험등급 제공":
         want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
         if want_to_Chatbot:
             st.session_state.type_of_case = "Chatbot"
-            switch_page("화재위험등급 안내 챗봇")
+            switch_page("pages/Chatbot.py")
             
     def page2():
         want_to_Tableau = st.button("Tableau")
@@ -509,7 +515,7 @@ if selected_survey == "GPT를 활용한 화재위험등급 제공":
         want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
         if want_to_Chatbot:
             st.session_state.type_of_case = "Chatbot"
-            switch_page("화재위험등급 안내 챗봇")
+            switch_page("pages/Chatbot.py")
             
     def page2():
         want_to_Tableau = st.button("Tableau")
@@ -578,7 +584,7 @@ if selected_survey == "Gemini를 활용한 화재위험등급 제공":
         want_to_Chatbot = st.button("화재위험등급 안내 챗봇")
         if want_to_Chatbot:
             st.session_state.type_of_case = "Chatbot"
-            switch_page("화재위험등급 안내 챗봇")
+            switch_page("pages/Chatbot.py")
             
     def page2():
         want_to_Tableau = st.button("Tableau")
